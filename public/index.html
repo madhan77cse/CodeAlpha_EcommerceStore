@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy - Home</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <main class="container">
+    <h1 class="page-title">Products</h1>
+
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search products...">
+      <select id="category">
+        <option value="">All categories</option>
+      </select>
+    </div>
+
+    <div id="products" class="grid"></div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const productsEl = document.getElementById('products');
+    const searchEl = document.getElementById('search');
+    const categoryEl = document.getElementById('category');
+    let loadedProducts = [];
+
+    async function loadCategories() {
+      const all = await api('/products');
+      const categories = [...new Set(all.map((p) => p.category))].sort();
+      categories.forEach((c) => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        categoryEl.appendChild(opt);
+      });
+    }
+
+    async function loadProducts() {
+      const params = new URLSearchParams();
+      if (searchEl.value.trim()) params.set('search', searchEl.value.trim());
+      if (categoryEl.value) params.set('category', categoryEl.value);
+      try {
+        loadedProducts = await api('/products?' + params.toString());
+        renderProducts();
+      } catch (err) {
+        productsEl.innerHTML = `<p class="empty">${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    function renderProducts() {
+      if (loadedProducts.length === 0) {
+        productsEl.innerHTML = '<p class="empty">No products found.</p>';
+        return;
+      }
+      productsEl.innerHTML = loadedProducts.map((p) => `
+        <div class="card">
+          <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+          <div class="body">
+            <span class="category">${escapeHtml(p.category)}</span>
+            <h3>${escapeHtml(p.name)}</h3>
+            <span class="price">${formatPrice(p.price)}</span>
+            <div class="actions">
+              <a class="btn btn-outline" href="product.html?id=${p._id}">View</a>
+              <button class="btn" data-id="${p._id}" ${p.stock < 1 ? 'disabled' : ''}>
+                ${p.stock < 1 ? 'Out of stock' : 'Add to cart'}
+              </button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    productsEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-id]');
+      if (!btn) return;
+      const product = loadedProducts.find((p) => p._id === btn.dataset.id);
+      if (!product) return;
+      addToCart(product, 1);
+      btn.textContent = 'Added ✓';
+      setTimeout(() => { btn.textContent = 'Add to cart'; }, 1000);
+    });
+
+    let timer;
+    searchEl.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(loadProducts, 300);
+    });
+    categoryEl.addEventListener('change', loadProducts);
+
+    loadCategories().catch(() => {}).finally(loadProducts);
+  </script>
+</body>
+</html>

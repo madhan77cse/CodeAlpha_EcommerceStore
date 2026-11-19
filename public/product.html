@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy - Product</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <main class="container">
+    <p style="margin-bottom:16px;"><a href="index.html" style="color:var(--primary);">&larr; Back to products</a></p>
+    <div id="product"></div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const productEl = document.getElementById('product');
+    const id = new URLSearchParams(window.location.search).get('id');
+    let product = null;
+
+    async function loadProduct() {
+      if (!id) {
+        productEl.innerHTML = '<p class="empty">No product selected.</p>';
+        return;
+      }
+      try {
+        product = await api('/products/' + id);
+        renderProduct();
+      } catch (err) {
+        productEl.innerHTML = `<p class="empty">${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    function renderProduct() {
+      document.title = 'ShopEasy - ' + product.name;
+      const inStock = product.stock > 0;
+      productEl.innerHTML = `
+        <div class="details">
+          <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">
+          <div class="info">
+            <span class="category" style="color:var(--muted);">${escapeHtml(product.category)}</span>
+            <h1>${escapeHtml(product.name)}</h1>
+            <span class="price" style="font-size:1.6rem;font-weight:700;">${formatPrice(product.price)}</span>
+            <p>${escapeHtml(product.description)}</p>
+            <p style="color:${inStock ? 'var(--success)' : 'var(--danger)'};">
+              ${inStock ? 'In stock (' + product.stock + ' available)' : 'Out of stock'}
+            </p>
+            ${inStock ? `
+              <div class="form-group" style="max-width:120px;">
+                <label for="qty">Quantity</label>
+                <input type="number" id="qty" value="1" min="1" max="${product.stock}">
+              </div>
+              <div>
+                <button class="btn" id="add-btn">Add to cart</button>
+                <a class="btn btn-outline" href="cart.html">Go to cart</a>
+              </div>` : ''}
+          </div>
+        </div>`;
+
+      const addBtn = document.getElementById('add-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          let qty = parseInt(document.getElementById('qty').value, 10);
+          if (!Number.isInteger(qty) || qty < 1) qty = 1;
+          qty = Math.min(qty, product.stock);
+          addToCart(product, qty);
+          addBtn.textContent = 'Added ✓';
+          setTimeout(() => { addBtn.textContent = 'Add to cart'; }, 1000);
+        });
+      }
+    }
+
+    loadProduct();
+  </script>
+</body>
+</html>

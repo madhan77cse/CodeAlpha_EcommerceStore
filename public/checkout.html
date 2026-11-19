@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy - Checkout</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <main class="container">
+    <h1 class="page-title">Checkout</h1>
+    <div id="checkout"></div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const checkoutEl = document.getElementById('checkout');
+
+    // must be logged in
+    if (!getUser()) {
+      window.location.href = 'login.html?redirect=checkout.html';
+    }
+
+    function renderCheckout() {
+      const cart = getCart();
+      const user = getUser();
+      if (!user) return;
+
+      if (cart.length === 0) {
+        checkoutEl.innerHTML = `
+          <div class="empty">
+            <p>Your cart is empty.</p><br>
+            <a class="btn" href="index.html">Continue shopping</a>
+          </div>`;
+        return;
+      }
+
+      checkoutEl.innerHTML = `
+        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+          <div class="form-box" style="margin:0;flex:1;min-width:280px;max-width:none;">
+            <h2>Shipping address</h2>
+            <div id="message" class="message"></div>
+            <form id="order-form">
+              <div class="form-group">
+                <label for="fullName">Full name</label>
+                <input type="text" id="fullName" value="${escapeHtml(user.name)}" required>
+              </div>
+              <div class="form-group">
+                <label for="address">Address</label>
+                <input type="text" id="address" required>
+              </div>
+              <div class="form-group">
+                <label for="city">City</label>
+                <input type="text" id="city" required>
+              </div>
+              <div class="form-group">
+                <label for="postalCode">Postal code</label>
+                <input type="text" id="postalCode" required>
+              </div>
+              <button type="submit" class="btn" id="place-btn">Place order</button>
+            </form>
+          </div>
+
+          <div class="form-box" style="margin:0;flex:1;min-width:280px;max-width:none;">
+            <h2>Order summary</h2>
+            ${cart.map((i) => `
+              <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;">
+                <span>${escapeHtml(i.name)} &times; ${i.qty}</span>
+                <span>${formatPrice(i.price * i.qty)}</span>
+              </div>`).join('')}
+            <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+            <div style="display:flex;justify-content:space-between;font-weight:700;">
+              <span>Total</span>
+              <span>${formatPrice(cartTotal())}</span>
+            </div>
+            <p style="margin-top:12px;font-size:0.85rem;color:var(--muted);">
+              The final price is confirmed by the server when you place the order.
+            </p>
+          </div>
+        </div>`;
+
+      document.getElementById('order-form').addEventListener('submit', placeOrder);
+    }
+
+    async function placeOrder(e) {
+      e.preventDefault();
+      const messageEl = document.getElementById('message');
+      const btn = document.getElementById('place-btn');
+      messageEl.className = 'message';
+      btn.disabled = true;
+      btn.textContent = 'Placing order...';
+
+      const items = getCart().map((i) => ({ productId: i.productId, qty: i.qty }));
+      const shippingAddress = {
+        fullName: document.getElementById('fullName').value.trim(),
+        address: document.getElementById('address').value.trim(),
+        city: document.getElementById('city').value.trim(),
+        postalCode: document.getElementById('postalCode').value.trim(),
+      };
+
+      try {
+        const order = await api('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ items, shippingAddress }),
+        });
+        clearCart();
+        checkoutEl.innerHTML = `
+          <div class="form-box" style="text-align:center;">
+            <h2>Order placed! 🎉</h2>
+            <p style="margin-bottom:6px;">Thank you, ${escapeHtml(order.shippingAddress.fullName)}.</p>
+            <p style="margin-bottom:6px;">Order total: <strong>${formatPrice(order.totalPrice)}</strong></p>
+            <p style="color:var(--muted);margin-bottom:18px;font-size:0.9rem;">Order ID: ${escapeHtml(order._id)}</p>
+            <a class="btn" href="orders.html">View my orders</a>
+          </div>`;
+      } catch (err) {
+        if (err.message.startsWith('Not authorized')) {
+          localStorage.removeItem('user');
+          window.location.href = 'login.html?redirect=checkout.html';
+          return;
+        }
+        messageEl.textContent = err.message;
+        messageEl.className = 'message error';
+        btn.disabled = false;
+        btn.textContent = 'Place order';
+      }
+    }
+
+    renderCheckout();
+  </script>
+</body>
+</html>
