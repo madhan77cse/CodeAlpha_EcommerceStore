@@ -97,7 +97,20 @@ After running the seed script: `admin@store.com` / `admin123`
 
 ## Screenshots
 
-Screenshots will be added here.
+### Home page
+![Home page](screenshots/home.png)
+
+### Product details
+![Product details](screenshots/product.png)
+
+### Cart
+![Cart](screenshots/cart.png)
+
+### Checkout
+![Checkout](screenshots/checkout.png)
+
+### My orders
+![My orders](screenshots/orders.png)
 
 ## Author
 
